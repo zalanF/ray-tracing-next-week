@@ -114,23 +114,23 @@ inline vec3 random_in_unit_disk() {
     }
 }
 
-// inline vec3 random_unit_vector() {
-//     while(true) {
-//         auto p = vec3::random(-1,1);
-//         auto lensq = p.length_squared();
-//         if (1e-60 < lensq && lensq <= 1)
-//             return p / sqrt(lensq);
-//     }
-// }
-
 inline vec3 random_unit_vector() {
-    auto theta = random_double(0, 2*pi);
-    auto phi   = random_double(0, pi);
-
-    return vec3(std::cos(theta) * std::sin(phi),
-                std::cos(phi)   * std::sin(theta),
-                std::cos(phi));
+    while(true) {
+        auto p = vec3::random(-1,1);
+        auto lensq = p.length_squared();
+        if (1e-60 < lensq && lensq <= 1)
+            return p / sqrt(lensq);
+    }
 }
+
+// inline vec3 random_unit_vector() {
+//     auto theta = random_double(0, 2*pi);
+//     auto phi   = random_double(0, pi);
+
+//     return vec3(std::cos(theta) * std::sin(phi),
+//                 std::cos(phi)   * std::sin(theta),
+//                 std::cos(phi));
+// }
 
 inline vec3 random_on_hemisphere(const vec3& normal) {
     vec3 on_unit_sphere = random_unit_vector();
