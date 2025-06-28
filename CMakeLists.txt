@@ -19,6 +19,8 @@ set(SOURCES
    src/interval.h
    src/camera.h
    src/material.h
+   src/aabb.h
+   src/bvh.h
    # src/Example.cpp
 )
 
