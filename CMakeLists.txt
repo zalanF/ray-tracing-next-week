@@ -23,6 +23,7 @@ set(SOURCES
    src/bvh.h
    src/texture.h
    src/rtw_stb_image.h
+   src/perlin.h
    # src/Example.cpp
 )
 
