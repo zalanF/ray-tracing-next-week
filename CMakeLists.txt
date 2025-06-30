@@ -24,6 +24,7 @@ set(SOURCES
    src/texture.h
    src/rtw_stb_image.h
    src/perlin.h
+   src/quad.h
    # src/Example.cpp
 )
 
