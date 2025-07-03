@@ -3,6 +3,7 @@
 
 #include "hittable.h"
 #include "material.h"
+#include <thread>
 
 class camera {
     public:
@@ -20,12 +21,9 @@ class camera {
         double defocus_angle = 0;   // Variation angle of rays through each pixel
         double focus_dist    = 10;  // Distance from the camera lookfrom point to the plane of perfect focus
 
-        void render(const hittable& world) {
-            initialize();
+        int number_of_threads = 1;
 
-            /*PPM image format header*/
-            std::cout << "P3\n" << image_width << ' ' << image_height << "\n255 \n";
-
+        void render_process(const hittable& world, std::vector<color>& image) {
             for (int j = 0; j < image_height; j++) {
                 /*log progress*/
                 std::clog << "\rScanlines remaining: " << (image_height - j) << " " << std::flush; 
@@ -33,18 +31,62 @@ class camera {
                 for (int i = 0; i < image_width; i++) {
                     color pixel_color(0,0,0);
 
-                    for (int sample = 0; sample < samples_per_pixel; sample++) {
+                    for (int sample = 0; sample < samples_per_thread; sample++) {
                         ray r = get_ray(i, j);
-                        pixel_color += ray_color(r, max_depth, world);
+                        //pixel_color += ray_color(r, max_depth, world);
+                        image[i + j*image_width] += ray_color(r, max_depth, world);
                     }
-                    write_color(std::cout, pixel_samples_scale * pixel_color);
+                    //write_color(std::cout, pixel_samples_scale * pixel_color);
                 }
             }
+        }
+
+        void render(const hittable& world) {
+            initialize();
+
+            /*PPM image format header*/
+            //std::cout << "P3\n" << image_width << ' ' << image_height << "\n255 \n";
+
+            std::vector<std::thread> threads;
+            std::vector<std::vector<color>> images_threads(number_of_threads);
+
+            for (int i = 0; i < images_threads.size(); i++) {
+                images_threads[i].resize(image_width * image_height);
+                threads.emplace_back(
+                    &camera::render_process, this, std::cref(world), std::ref(images_threads[i])
+                );
+                //threads.push_back(std::thread(render_process, world, std::ref(images_threads[i])));
+            }
+
+            for (auto& t : threads) {
+                t.join();
+            }
+
+            //render_process(world, image);
+
+            // average the pixel values and write to PPM
+            std::cout << "P3\n" << image_width << ' ' << image_height << "\n255 \n";
+            // for (auto pixel : image) {
+            //     write_color(std::cout, pixel_samples_scale * pixel);
+            // }
+            for (int p_idx = 0; p_idx < image_width * image_height; p_idx++) {
+                if (p_idx % 1000 == 0)  {
+                    std::clog << "\rPixel index: " << p_idx << std::flush;
+                }
+                color pixel(0,0,0);
+                for (auto img : images_threads) {
+                    pixel += img[p_idx];
+                }
+                write_color(std::cout, pixel_samples_scale * pixel);
+            } 
 
             std::clog << "\rDone.                     \n";
         }
 
     private:
+        std::vector<color> image;
+        int samples_per_thread;
+
         int    image_height;        // Render image height in pixel count
         double pixel_samples_scale; // Color scale factor for a sum of pixel samples
         point3 center;              // Camera center
@@ -58,6 +100,10 @@ class camera {
         void initialize() {
             image_height = int(image_width / aspect_ratio);
             image_height = (image_height < 1) ? 1 : image_height; //clamp to height of 1 pixel
+
+            image.resize(image_width * image_height);
+
+            samples_per_thread = int(samples_per_pixel / number_of_threads);
 
             pixel_samples_scale = 1.0 / samples_per_pixel;
 

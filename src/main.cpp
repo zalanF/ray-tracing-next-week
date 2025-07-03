@@ -365,6 +365,8 @@ void final_scene(int image_width, int samples_per_pixel, int max_depth) {
 
     camera cam;
 
+    cam.number_of_threads = 16;
+
     cam.aspect_ratio      = 1.0;
     cam.image_width       = image_width;
     cam.samples_per_pixel = samples_per_pixel;
