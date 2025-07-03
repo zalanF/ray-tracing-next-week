@@ -25,6 +25,7 @@ set(SOURCES
    src/rtw_stb_image.h
    src/perlin.h
    src/quad.h
+   src/constant_medium.h
    # src/Example.cpp
 )
 
