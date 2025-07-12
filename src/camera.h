@@ -4,6 +4,7 @@
 #include "hittable.h"
 #include "material.h"
 #include <thread>
+#include <chrono>
 
 class camera {
     public:
@@ -24,6 +25,14 @@ class camera {
         int number_of_threads = 1;
 
         void render_process(const hittable& world, std::vector<color>& image) {
+
+            // Hacky way ensure that each thread has a different seed.
+            // This is effectively a more precise version of the classic time(NULL) seed typically used
+            // to seed srand() in C.
+            auto now = std::chrono::system_clock::now().time_since_epoch();
+            auto seed = std::chrono::duration_cast<std::chrono::microseconds>(now).count();
+            srand(seed);
+
             for (int j = 0; j < image_height; j++) {
                 /*log progress*/
                 std::clog << "\rScanlines remaining: " << (image_height - j) << " " << std::flush; 
@@ -44,42 +53,33 @@ class camera {
         void render(const hittable& world) {
             initialize();
 
-            /*PPM image format header*/
-            //std::cout << "P3\n" << image_width << ' ' << image_height << "\n255 \n";
-
             std::vector<std::thread> threads;
-            std::vector<std::vector<color>> images_threads(number_of_threads);
+            std::vector<std::vector<color>> images;
+            images.resize(number_of_threads);
 
-            for (int i = 0; i < images_threads.size(); i++) {
-                images_threads[i].resize(image_width * image_height);
+            for (int i = 0; i < images.size(); i++) {
+                images[i].resize(image_width * image_height);
                 threads.emplace_back(
-                    &camera::render_process, this, std::cref(world), std::ref(images_threads[i])
+                    &camera::render_process, this, std::cref(world), std::ref(images[i])
                 );
-                //threads.push_back(std::thread(render_process, world, std::ref(images_threads[i])));
             }
 
             for (auto& t : threads) {
                 t.join();
             }
 
-            //render_process(world, image);
-
-            // average the pixel values and write to PPM
-            std::cout << "P3\n" << image_width << ' ' << image_height << "\n255 \n";
-            // for (auto pixel : image) {
-            //     write_color(std::cout, pixel_samples_scale * pixel);
-            // }
+            // average the pixel values and write to PPM file
+            std::cout << "P3\n" << image_width << ' ' << image_height << "\n255 \n"; // PPM Header
             for (int p_idx = 0; p_idx < image_width * image_height; p_idx++) {
-                if (p_idx % 1000 == 0)  {
-                    std::clog << "\rPixel index: " << p_idx << std::flush;
-                }
+ 
                 color pixel(0,0,0);
-                for (auto img : images_threads) {
+
+                for (const auto& img : images) {
                     pixel += img[p_idx];
                 }
-                write_color(std::cout, pixel_samples_scale * pixel);
-            } 
 
+                write_color(std::cout, pixel_samples_scale * pixel);
+            }
             std::clog << "\rDone.                     \n";
         }
 
@@ -103,6 +103,8 @@ class camera {
 
             image.resize(image_width * image_height);
 
+            // Will divide the given sample per pixel to the closest integer multiple 
+            // of the number of threads
             samples_per_thread = int(samples_per_pixel / number_of_threads);
 
             pixel_samples_scale = 1.0 / samples_per_pixel;
