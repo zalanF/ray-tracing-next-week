@@ -24,7 +24,7 @@ class camera {
 
         int number_of_threads = 1;
 
-        void render_process(const hittable& world, std::vector<color>& image) {
+        void render_process(const hittable& world, color* image, int thread_id) {
 
             // Hacky way ensure that each thread has a different seed.
             // This is effectively a more precise version of the classic time(NULL) seed typically used
@@ -33,14 +33,20 @@ class camera {
             auto seed = std::chrono::duration_cast<std::chrono::microseconds>(now).count();
             srand(seed);
 
+            int samples_to_calculate = samples_per_pixel_per_thread;
+            // Distribute the remaining samples amongst the threads 
+            int remaining_samples = samples_per_pixel % number_of_threads; 
+            if (thread_id < remaining_samples) 
+                samples_to_calculate++;
+
             for (int j = 0; j < image_height; j++) {
-                /*log progress*/
+                //log progress
                 std::clog << "\rScanlines remaining: " << (image_height - j) << " " << std::flush; 
                 
                 for (int i = 0; i < image_width; i++) {
                     color pixel_color(0,0,0);
 
-                    for (int sample = 0; sample < samples_per_thread; sample++) {
+                    for (int sample = 0; sample < samples_to_calculate; sample++) {
                         ray r = get_ray(i, j);
                         //pixel_color += ray_color(r, max_depth, world);
                         image[i + j*image_width] += ray_color(r, max_depth, world);
@@ -54,13 +60,15 @@ class camera {
             initialize();
 
             std::vector<std::thread> threads;
-            std::vector<std::vector<color>> images;
+            std::vector<color*> images;
             images.resize(number_of_threads);
 
             for (int i = 0; i < images.size(); i++) {
-                images[i].resize(image_width * image_height);
+                images[i] = (color *)malloc(sizeof(color) * (image_width * image_height));
+                assert(image != NULL);
+
                 threads.emplace_back(
-                    &camera::render_process, this, std::cref(world), std::ref(images[i])
+                    &camera::render_process, this, std::cref(world), std::ref(images[i]), i
                 );
             }
 
@@ -84,8 +92,8 @@ class camera {
         }
 
     private:
-        std::vector<color> image;
-        int samples_per_thread;
+        color *image;
+        int samples_per_pixel_per_thread;
 
         int    image_height;        // Render image height in pixel count
         double pixel_samples_scale; // Color scale factor for a sum of pixel samples
@@ -101,11 +109,12 @@ class camera {
             image_height = int(image_width / aspect_ratio);
             image_height = (image_height < 1) ? 1 : image_height; //clamp to height of 1 pixel
 
-            image.resize(image_width * image_height);
+            image = (color *)malloc(sizeof(color) * (image_width * image_height));
+            assert(image != NULL);
 
             // Will divide the given sample per pixel to the closest integer multiple 
             // of the number of threads
-            samples_per_thread = int(samples_per_pixel / number_of_threads);
+            samples_per_pixel_per_thread = int(samples_per_pixel / number_of_threads);
 
             pixel_samples_scale = 1.0 / samples_per_pixel;
 
