@@ -65,7 +65,7 @@ class camera {
 
             for (int i = 0; i < images.size(); i++) {
                 images[i] = (color *)malloc(sizeof(color) * (image_width * image_height));
-                assert(image != NULL);
+                assert(images[i] != NULL);
 
                 threads.emplace_back(
                     &camera::render_process, this, std::cref(world), std::ref(images[i]), i
@@ -89,10 +89,15 @@ class camera {
                 write_color(std::cout, pixel_samples_scale * pixel);
             }
             std::clog << "\rDone.                     \n";
+
+
+            for (int i = 0; i < number_of_threads; i++) {
+                free(images[i]);
+            }
         }
 
     private:
-        color *image;
+        //color *image;
         int samples_per_pixel_per_thread;
 
         int    image_height;        // Render image height in pixel count
@@ -109,8 +114,8 @@ class camera {
             image_height = int(image_width / aspect_ratio);
             image_height = (image_height < 1) ? 1 : image_height; //clamp to height of 1 pixel
 
-            image = (color *)malloc(sizeof(color) * (image_width * image_height));
-            assert(image != NULL);
+            //image = (color *)malloc(sizeof(color) * (image_width * image_height));
+            //assert(image != NULL);
 
             // Will divide the given sample per pixel to the closest integer multiple 
             // of the number of threads
